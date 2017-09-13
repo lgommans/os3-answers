@@ -54,7 +54,8 @@ for name_line in names.split('\n'):
     if verbose:
         sys.stderr.write('Processing {}\n'.format(name))
 
-    page = get('{}/students/{}/{}/lab{}'.format(base_url, name, course, labn), cookies=cookies)
+    personurl = '{}/students/{}/{}/lab{}'.format(base_url, name, course, labn)
+    page = get(personurl, cookies=cookies)
     if slowly > 0.0001:
         time.sleep(slowly)
     if page.status_code != 200:
@@ -86,7 +87,7 @@ for name_line in names.split('\n'):
                     continue
 
                 started = 1
-                print('<hr>{}:<div class=garbl>'.format(name))
+                print('<hr><a href="{}">{}</a>:<div class=garbl>'.format(personurl, name))
                 first = True
 
         if started:
