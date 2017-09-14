@@ -11,7 +11,8 @@
 accepted_terms_of_use = False
 verbose = True
 slowly = 0.2 # float seconds between requests, or False
-base_url = 'https://www.os3.nl/2017-2018'
+base_url = 'https://www.os3.nl'
+year = '2017-2018'
 
 import sys, time
 from requests import get
@@ -41,7 +42,7 @@ cookies = {}
 for cookie in raw_cookies:
     cookies[cookie.split('=')[0]] = cookie.split('=')[1].strip()
 
-names = get('{}/courses/{}/labassignments'.format(base_url, course), cookies=cookies).text
+names = get('{}/{}/courses/{}/labassignments'.format(base_url, year, course), cookies=cookies).text
 if slowly > 0.0001:
     time.sleep(slowly)
 
@@ -54,7 +55,7 @@ for name_line in names.split('\n'):
     if verbose:
         sys.stderr.write('Processing {}\n'.format(name))
 
-    personurl = '{}/students/{}/{}/lab{}'.format(base_url, name, course, labn)
+    personurl = '{}/{}/students/{}/{}/lab{}'.format(base_url, year, name, course, labn)
     page = get(personurl, cookies=cookies)
     if slowly > 0.0001:
         time.sleep(slowly)
@@ -96,7 +97,7 @@ for name_line in names.split('\n'):
                 started = False
                 print('</div></div></div></div></div><hr>')
             else:
-                print(line)
+                print(line.replace('img src="/_media', 'img src="{}/_media'.format(base_url)))
                 started += 1
     sys.stdout.flush()
 
