@@ -71,6 +71,7 @@ for name_line in names.split('\n'):
         if 'class="sectionedit' in line:
             headingtext = line[line.index('>'):]
             headingtext = headingtext[:headingtext.index('<')]
+            headingtext = headingtext[0:15] # Because after that, we can assume it's just a random number in the title
             if (question + ' ' in headingtext
                     or question + '.' in headingtext
                     or ' ' + question in headingtext
