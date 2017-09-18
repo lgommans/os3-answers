@@ -9,13 +9,24 @@
 ################################
 
 accepted_terms_of_use = False
+
 verbose = True
 slowly = 0.2 # float seconds between requests, or False
-base_url = 'https://www.os3.nl'
-year = '2017-2018'
 
-import sys, time
-from requests import get
+base_url = 'https://www.os3.nl'
+year = '2017-2018' # URL component
+
+timeout = 15 # Timeout for HTTP requests
+retries = 5 # Number of retries for each HTTP request
+
+cacheFolder = 'cache/'
+writeCache = True # Whether to save the result of GETs in cacheFolder
+useCache = False # Whether to use those cached files
+
+
+import sys, os, time, requests
+from hashlib import md5
+get = requests.get
 
 if len(sys.argv) < 4:
     print('Usage: {} <course> <lab> <question>'.format(sys.argv[0]))
@@ -42,9 +53,34 @@ cookies = {}
 for cookie in raw_cookies:
     cookies[cookie.split('=')[0]] = cookie.split('=')[1].strip()
 
-names = get('{}/{}/courses/{}/labassignments'.format(base_url, year, course), cookies=cookies).text
-if slowly > 0.0001:
-    time.sleep(slowly)
+if not os.path.isdir(cacheFolder):
+    os.mkdir(cacheFolder)
+
+cacheFile = cacheFolder + md5(bytes('labassignments-{}-{}-{}'.format(base_url, year, course), 'utf-8')).hexdigest()
+if useCache and os.path.isfile(cacheFile):
+    names = open(cacheFile).read()
+else:
+    tries = 0
+    if verbose:
+        sys.stderr.write('Getting course page...\n')
+    while True:
+        try:
+            names = get('{}/{}/courses/{}/labassignments'.format(base_url, year, course), cookies=cookies, timeout=timeout).text
+            if slowly > 0.0001:
+                time.sleep(slowly)
+            break
+        except requests.exceptions.Timeout:
+            if verbose:
+                sys.stderr.write('Timeout getting {} page, retrying\n'.format(course))
+            if tries >= retries:
+                sys.stderr.write('Error downloading page. Giving up after {} tries.\n'.format(tries))
+                sys.exit(2)
+            tries += 1
+
+    if writeCache:
+        f = open(cacheFile, 'w')
+        f.write(names)
+        f.close()
 
 for name_line in names.split('\n'):
     if '<li class="level1"><div class="li">' not in name_line or 'href="/2017-2018/students/' not in name_line:
@@ -56,13 +92,32 @@ for name_line in names.split('\n'):
         sys.stderr.write('Processing {}\n'.format(name))
 
     personurl = '{}/{}/students/{}/{}/lab{}'.format(base_url, year, name, course, labn)
-    page = get(personurl, cookies=cookies)
-    if slowly > 0.0001:
-        time.sleep(slowly)
-    if page.status_code != 200:
-        if verbose:
-            sys.stderr.write('{} does not have this page.\n'.format(name))
-        continue
+    cacheFile = '{}/{}'.format(cacheFolder, md5(bytes(personurl, 'utf-8')).hexdigest())
+    if useCache and os.path.isfile(cacheFile):
+        page = open(cacheFile).read()
+    else:
+        tries = 0
+        while True:
+            try:
+                page = get(personurl, cookies=cookies)
+                if slowly > 0.0001:
+                    time.sleep(slowly)
+                if page.status_code != 200:
+                    if verbose:
+                        sys.stderr.write('{} does not have this page.\n'.format(name))
+                break
+            except requests.exceptions.Timeout:
+                if tries >= retries:
+                    if verbose:
+                        sys.stderr.write('Timeout getting {}\'s page, retrying\n'.format(name))
+                    sys.stderr.write('Error downloading page. Giving up after {} tries.\n'.format(tries))
+                    sys.exit(2)
+                tries += 1
+
+        if writeCache:
+            f = open(cacheFile, 'w')
+            f.write(page.text)
+            f.close()
 
     page = page.text
 
