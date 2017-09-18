@@ -157,4 +157,5 @@ for name_line in names.split('\n'):
     sys.stdout.flush()
 
 print('<style>.garbl { background-color: #eef; margin-bottom: 50px; }</style>')
+print('<meta charset="utf-8">')
 
